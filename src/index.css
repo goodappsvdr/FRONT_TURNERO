@@ -1,0 +1,135 @@
+@import "tailwindcss";
+
+@theme {
+  /* Cal.com inspired color palette */
+  --color-cal-primary: #3b82f6;
+  --color-cal-primary-dark: #2563eb;
+  --color-cal-secondary: #8b5cf6;
+  --color-cal-success: #10b981;
+  --color-cal-warning: #f59e0b;
+  --color-cal-danger: #ef4444;
+  --color-cal-gray-50: #f9fafb;
+  --color-cal-gray-100: #f3f4f6;
+  --color-cal-gray-200: #e5e7eb;
+  --color-cal-gray-300: #d1d5db;
+  --color-cal-gray-400: #9ca3af;
+  --color-cal-gray-500: #6b7280;
+  --color-cal-gray-600: #4b5563;
+  --color-cal-gray-700: #374151;
+  --color-cal-gray-800: #1f2937;
+  --color-cal-gray-900: #111827;
+
+  --color-primary: #3b82f6;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #f3f4f6;
+  --color-secondary-foreground: #111827;
+  --color-background: #f9fafb;
+  --color-foreground: #111827;
+  --color-muted: #f3f4f6;
+  --color-muted-foreground: #6b7280;
+  --color-accent: #e5e7eb;
+  --color-accent-foreground: #111827;
+  --color-destructive: #ef4444;
+  --color-destructive-foreground: #ffffff;
+  --color-border: #e5e7eb;
+  --color-input: #e5e7eb;
+  --color-ring: #3b82f6;
+  --color-card: #ffffff;
+  --color-card-foreground: #111827;
+  --color-success: #10b981;
+  --color-success-foreground: #ffffff;
+  --color-warning: #f59e0b;
+  --color-warning-foreground: #ffffff;
+  --color-sidebar: #1f2937;
+  --color-sidebar-foreground: #f9fafb;
+  --color-sidebar-accent: #3b82f6;
+  --color-shift-yellow: #fef3c7;
+  --color-shift-green: #d1fae5;
+  --color-shift-pink: #fce7f3;
+  --color-shift-orange: #ffedd5;
+  --color-shift-red: #fee2e2;
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+}
+
+:root.dark {
+  --color-primary: #22d3ee;
+  --color-primary-foreground: #0f172a;
+  --color-secondary: #1e293b;
+  --color-secondary-foreground: #f1f5f9;
+  --color-background: #0f172a;
+  --color-foreground: #f1f5f9;
+  --color-muted: #1e293b;
+  --color-muted-foreground: #94a3b8;
+  --color-accent: #164e63;
+  --color-accent-foreground: #e0f2fe;
+  --color-destructive: #ef4444;
+  --color-destructive-foreground: #ffffff;
+  --color-border: #334155;
+  --color-input: #334155;
+  --color-ring: #22d3ee;
+  --color-card: #1e293b;
+  --color-card-foreground: #f1f5f9;
+  --color-success: #22c55e;
+  --color-success-foreground: #ffffff;
+  --color-warning: #fbbf24;
+  --color-warning-foreground: #0f172a;
+}
+
+* {
+  border-color: var(--color-border);
+}
+
+body {
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-out;
+}
+
+.animate-slide-in {
+  animation: slideIn 0.2s ease-out;
+}
+
+.animate-pulse-soft {
+  animation: pulse-soft 2s ease-in-out infinite;
+}
