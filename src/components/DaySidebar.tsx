@@ -46,6 +46,7 @@ DaySidebarProps) {
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [patientName, setPatientName] = useState("");
   const [patientPhone, setPatientPhone] = useState("");
+  const [phoneError, setPhoneError] = useState("");
 
   const {
     availableSlots,
@@ -75,6 +76,12 @@ DaySidebarProps) {
 
   const handleBookAppointment = async () => {
     if (!selectedSlot || !patientName || !patientPhone) return;
+    const phonePattern = /^549\d{10}$/;
+    if (!phonePattern.test(patientPhone)) {
+      setPhoneError("El teléfono debe tener el formato 549 ...");
+      return;
+    }
+    setPhoneError("");
 
     const success = await createAppointmentFromSlot(
       selectedSlot,
@@ -87,6 +94,7 @@ DaySidebarProps) {
       setPatientName("");
       setPatientPhone("");
       setSelectedSlot(null);
+      setPhoneError("");
     }
   };
 
@@ -147,15 +155,6 @@ DaySidebarProps) {
           </p>
         </div>
 
-        {/* <Button
-          onClick={onAddAppointment}
-          className="w-full mb-4 bg-cal-primary hover:bg-cal-primary-dark"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Nuevo turno
-        </Button> */}
-
-        {/* Available Slots Section */}
         <div className="mb-6">
           <h3 className="text-sm font-semibold text-cal-gray-700 mb-3">
             Horarios disponibles
@@ -222,9 +221,6 @@ DaySidebarProps) {
                       <h3 className="font-medium text-cal-gray-900">
                         {appt.patientName}
                       </h3>
-                      <p className="text-sm text-cal-gray-600">
-                        {appt.treatment}
-                      </p>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium text-cal-gray-900">
@@ -242,9 +238,6 @@ DaySidebarProps) {
                   </div>
 
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-cal-gray-600">
-                      {appt.profesional}
-                    </span>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <button
@@ -356,10 +349,26 @@ DaySidebarProps) {
               <Input
                 id="patientPhone"
                 value={patientPhone}
-                onChange={(e) => setPatientPhone(e.target.value)}
-                placeholder="Ingrese el teléfono"
+                onChange={(e) => {
+                  setPatientPhone(e.target.value);
+                  if (phoneError) {
+                    const isValid = /^549\d{10}$/.test(e.target.value);
+                    if (isValid) {
+                      setPhoneError("");
+                    }
+                  }
+                }}
+                placeholder="Ej: 5493573401261"
                 className="border-cal-gray-300"
+                maxLength={13}
+                inputMode="numeric"
               />
+              {!phoneError && (
+                <p className="text-xs text-cal-gray-500">Ej: 5493573556677</p>
+              )}
+              {phoneError && (
+                <p className="text-sm text-red-600">{phoneError}</p>
+              )}
             </div>
 
             {error && <p className="text-sm text-red-600">{error}</p>}

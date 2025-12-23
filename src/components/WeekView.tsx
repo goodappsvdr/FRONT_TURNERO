@@ -223,7 +223,7 @@ export function WeekView({
                       <div
                         key={appt.id}
                         className={cn(
-                          "absolute inset-1 rounded text-xs p-1 truncate z-10",
+                          "absolute inset-1 rounded text-xs p-1 wrap-break-word leading-tight z-10",
                           appt.status === "confirmed" &&
                             "bg-emerald-100 text-emerald-800 border border-emerald-200",
                           appt.status === "pending" &&
@@ -240,8 +240,8 @@ export function WeekView({
                           zIndex: 10 + idx,
                         }}
                       >
-                        <div className="font-medium truncate">
-                          {appt.patientName.split(" ")[0]}
+                        <div className="font-medium wrap-break-word leading-tight">
+                          {appt.patientName}
                         </div>
                         <div className="text-xs opacity-75">
                           {appt.startTime}

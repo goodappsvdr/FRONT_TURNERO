@@ -107,14 +107,14 @@ export function MonthView({ selectedDate, onDateSelect }: MonthViewProps) {
       <div
         key={idx}
         className={cn(
-          "text-xs truncate px-1 rounded mb-0.5",
+          "text-xs px-1 rounded mb-0.5 leading-tight wrap-break-word",
           appt.status === "confirmed" && "bg-emerald-100 text-emerald-800",
           appt.status === "pending" && "bg-amber-100 text-amber-800",
           appt.status === "completed" && "bg-blue-100 text-blue-800",
           appt.status === "cancelled" && "bg-gray-100 text-gray-500"
         )}
       >
-        {appt.patientName.split(" ")[0]}
+        {appt.patientName}
       </div>
     ));
   };
