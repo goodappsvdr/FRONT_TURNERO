@@ -26,8 +26,11 @@ export const useAuthStore = create<AuthStore>()(
         try {
           const response = await authApi.login(username, password);
 
-          if (response.status === "200" && response.token) {
-            // Obtener datos del usuario decodificando el token
+          if (response.token) {
+            // Save token to localStorage
+            localStorage.setItem("auth_token", response.token);
+
+            // Decode token to get user data
             const decoded = await authApi.decodeToken();
             const user: User = {
               id: parseInt(decoded.usuario.idUsuario),
@@ -45,7 +48,7 @@ export const useAuthStore = create<AuthStore>()(
 
           set({
             isLoading: false,
-            error: response.message || "Credenciales incorrectas",
+            error: response.message || "Error al iniciar sesión",
           });
           return false;
         } catch (error: unknown) {

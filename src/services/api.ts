@@ -1,8 +1,8 @@
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ||
-  "https://apiconsultorios.ubiko.com.ar/api";
+  "https://apidragabrielagarcia.gestionconsultorios.com.ar/api";
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -34,6 +34,12 @@ api.interceptors.response.use(
 );
 
 // ==================== INTERFACES ====================
+
+// Respuesta de error de la API
+interface ApiErrorResponse {
+  message?: string;
+  status?: string;
+}
 
 // Respuesta del POST /api/auth/login
 export interface ApiLoginResponse {
@@ -176,15 +182,34 @@ export const authApi = {
     usuario: string,
     password: string
   ): Promise<ApiLoginResponse> => {
-    const response = await api.post<ApiLoginResponse>("/auth/login", {
-      usuario,
-      password,
-    });
-    // Guardar token en localStorage
-    if (response.data.token) {
-      localStorage.setItem("auth_token", response.data.token);
+    try {
+      const response = await api.post<ApiLoginResponse>("/auth/login", {
+        usuario,
+        password,
+      });
+      return response.data;
+    } catch (error: unknown) {
+      // Handle login errors specifically without triggering the interceptor
+      if (axios.isAxiosError(error)) {
+        const axiosError = error as AxiosError;
+        if (axiosError.response?.status === 401) {
+          throw new Error("Usuario o contraseña incorrectos");
+        }
+        if (axiosError.response?.status === 400) {
+          throw new Error("Datos de entrada inválidos");
+        }
+        if (axiosError.response && axiosError.response.status >= 500) {
+          throw new Error("Error del servidor. Inténtalo más tarde");
+        }
+        if (!axiosError.response) {
+          throw new Error("Error de conexión. Verifica tu conexión a internet");
+        }
+        const errorData = axiosError.response.data as ApiErrorResponse;
+        throw new Error(errorData?.message || "Error al iniciar sesión");
+      }
+      // For non-axios errors
+      throw new Error("Error desconocido al iniciar sesión");
     }
-    return response.data;
   },
 
   decodeToken: async (): Promise<ApiDecodeTokenResponse> => {
