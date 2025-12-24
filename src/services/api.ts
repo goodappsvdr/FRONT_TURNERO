@@ -287,11 +287,8 @@ export const calendarApi = {
 
   confirmarTurno: async (data: {
     startTime: string;
-    duracion: number;
-    duracionTexto: string;
     nombre: string;
     celular: string;
-    timeZone: string;
   }) => {
     const response = await api.post("/Calendar/ConfirmarTurno", data);
     return response.data;

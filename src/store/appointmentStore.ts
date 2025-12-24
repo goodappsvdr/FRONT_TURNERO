@@ -130,11 +130,8 @@ export const useAppointmentStore = create<AppointmentStore>((set, get) => ({
     try {
       await calendarApi.confirmarTurno({
         startTime: slot,
-        duracion: 60,
-        duracionTexto: "60 minutos",
         nombre: patientName,
         celular: patientPhone,
-        timeZone: "America/Argentina/Buenos_Aires",
       });
 
       // Refresh appointments and available slots

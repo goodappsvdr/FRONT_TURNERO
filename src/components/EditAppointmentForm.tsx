@@ -70,6 +70,9 @@ export function EditAppointmentForm({
   const updateAppointmentFull = useAppointmentStore(
     (state) => state.updateAppointmentFull
   );
+  const cancelAppointment = useAppointmentStore(
+    (state) => state.cancelAppointment
+  );
   const isLoading = useAppointmentStore((state) => state.isLoading);
 
   const [drafts, setDrafts] = useState<Record<number, FormDataState>>({});
@@ -165,6 +168,14 @@ export function EditAppointmentForm({
       nombrePeluquero: formData.nombrePeluquero,
       estado: formData.estado,
     };
+
+    if (formData.estado === "cancelado") {
+      const cancelled = await cancelAppointment(appointment.id, "cancelado");
+      if (!cancelled) {
+        toast.error("Error al cancelar el turno");
+        return;
+      }
+    }
 
     const success = await updateAppointmentFull(appointment.id, payload);
     if (success) {
