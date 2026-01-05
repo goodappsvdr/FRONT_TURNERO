@@ -37,6 +37,7 @@ export const useAuthStore = create<AuthStore>()(
               login: decoded.usuario.login,
               email: decoded.usuario.email,
               rol: parseInt(decoded.usuario.idRol),
+              IdEmpleado: parseInt(decoded.usuario.idEmpleado),
             };
             set({
               user,

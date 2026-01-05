@@ -1,14 +1,6 @@
 import { memo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import {
-  LayoutDashboard,
-  // Calendar,
-  // Users,
-  // BarChart3,
-  // Settings,
-  ChevronLeft,
-  Stethoscope,
-} from "lucide-react";
+import { LayoutDashboard, ChevronLeft, Stethoscope } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface SidebarProps {
@@ -18,10 +10,6 @@ interface SidebarProps {
 
 const navItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
-  // { icon: Calendar, label: "Turnos", path: "/dashboard", active: true },
-  // { icon: Users, label: "Pacientes", path: "/patients" },
-  // { icon: BarChart3, label: "Reportes", path: "/reports" },
-  // { icon: Settings, label: "Configuración", path: "/settings" },
 ];
 
 export const Sidebar = memo(function Sidebar({
