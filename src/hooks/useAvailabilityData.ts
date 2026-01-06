@@ -91,33 +91,33 @@ export function useAvailabilityData() {
     },
   });
 
-  const updateAvailabilityMutation = useMutation({
-    mutationFn: async (params: {
-      availabilityId: number;
-      days: number[];
-      startTime: string;
-      endTime: string;
-    }) => {
-      if (!user?.IdEmpleado) {
-        throw new Error("No employee ID available");
-      }
-      await availabilityApi.updateAvailability(
-        params.availabilityId,
-        user.IdEmpleado,
-        params.days,
-        params.startTime,
-        params.endTime
-      );
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey });
-      toast.success("Disponibilidad actualizada exitosamente");
-    },
-    onError: (err) => {
-      console.error("Error updating availability:", err);
-      toast.error("Error al actualizar la disponibilidad");
-    },
-  });
+  // const updateAvailabilityMutation = useMutation({
+  //   mutationFn: async (params: {
+  //     availabilityId: number;
+  //     days: number[];
+  //     startTime: string;
+  //     endTime: string;
+  //   }) => {
+  //     if (!user?.IdEmpleado) {
+  //       throw new Error("No employee ID available");
+  //     }
+  //     await availabilityApi.updateAvailability(
+  //       params.availabilityId,
+  //       user.IdEmpleado,
+  //       params.days,
+  //       params.startTime,
+  //       params.endTime
+  //     );
+  //   },
+  //   onSuccess: () => {
+  //     queryClient.invalidateQueries({ queryKey });
+  //     toast.success("Disponibilidad actualizada exitosamente");
+  //   },
+  //   onError: (err) => {
+  //     console.error("Error updating availability:", err);
+  //     toast.error("Error al actualizar la disponibilidad");
+  //   },
+  // });
 
   const deleteAvailabilityMutation = useMutation({
     mutationFn: async (availabilityId: string) => {
@@ -129,12 +129,29 @@ export function useAvailabilityData() {
         user.IdEmpleado
       );
     },
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey });
+      const previousConfig =
+        queryClient.getQueryData<AvailabilityConfig>(queryKey);
+
+      if (previousConfig) {
+        queryClient.setQueryData<AvailabilityConfig>(queryKey, {
+          ...previousConfig,
+          availabilityId: null,
+        });
+      }
+
+      return { previousConfig };
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey });
       toast.success("Disponibilidad eliminada");
     },
-    onError: (err) => {
-      console.error("Error deleting availability:", err);
+    onError: (_err, _variables, context) => {
+      if (context?.previousConfig) {
+        queryClient.setQueryData(queryKey, context.previousConfig);
+      }
+      console.error("Error deleting availability:", _err);
       toast.error("No se pudo eliminar la disponibilidad");
     },
   });
@@ -150,12 +167,44 @@ export function useAvailabilityData() {
       }
       await availabilityApi.createOverride(user.IdEmpleado, payload);
     },
+    onMutate: async (payload) => {
+      await queryClient.cancelQueries({ queryKey });
+      const previousConfig =
+        queryClient.getQueryData<AvailabilityConfig>(queryKey);
+      const tempId = `temp-${Date.now()}`;
+
+      if (previousConfig) {
+        queryClient.setQueryData<AvailabilityConfig>(queryKey, {
+          ...previousConfig,
+          dateOverrides: [
+            ...previousConfig.dateOverrides,
+            {
+              id: tempId,
+              apiId: undefined,
+              date: payload.date,
+              timeRanges: [
+                {
+                  id: `temp-range-${Date.now()}`,
+                  start: payload.startTime,
+                  end: payload.endTime,
+                },
+              ],
+            },
+          ],
+        });
+      }
+
+      return { previousConfig, tempId };
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey });
       toast.success("Anulación guardada");
     },
-    onError: (err) => {
-      console.error("Error creating override:", err);
+    onError: (_err, _variables, context) => {
+      if (context?.previousConfig) {
+        queryClient.setQueryData(queryKey, context.previousConfig);
+      }
+      console.error("Error creating override:", _err);
       toast.error("No se pudo guardar la anulación");
     },
   });
@@ -170,12 +219,31 @@ export function useAvailabilityData() {
         user.IdEmpleado
       );
     },
+    onMutate: async (overrideApiId: string) => {
+      await queryClient.cancelQueries({ queryKey });
+      const previousConfig =
+        queryClient.getQueryData<AvailabilityConfig>(queryKey);
+
+      if (previousConfig) {
+        queryClient.setQueryData<AvailabilityConfig>(queryKey, {
+          ...previousConfig,
+          dateOverrides: previousConfig.dateOverrides.filter(
+            (o) => String(o.apiId) !== overrideApiId
+          ),
+        });
+      }
+
+      return { previousConfig };
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey });
       toast.success("Anulación eliminada");
     },
-    onError: (err) => {
-      console.error("Error deleting override:", err);
+    onError: (_err, _variables, context) => {
+      if (context?.previousConfig) {
+        queryClient.setQueryData(queryKey, context.previousConfig);
+      }
+      console.error("Error deleting override:", _err);
       toast.error("No se pudo eliminar la anulación");
     },
   });
@@ -208,19 +276,19 @@ export function useAvailabilityData() {
     });
   };
 
-  const handleUpdateAvailability = async (
-    availabilityId: number,
-    days: number[],
-    startTime: string,
-    endTime: string
-  ) => {
-    updateAvailabilityMutation.mutate({
-      availabilityId,
-      days,
-      startTime,
-      endTime,
-    });
-  };
+  // const handleUpdateAvailability = async (
+  //   availabilityId: number,
+  //   days: number[],
+  //   startTime: string,
+  //   endTime: string
+  // ) => {
+  //   updateAvailabilityMutation.mutate({
+  //     availabilityId,
+  //     days,
+  //     startTime,
+  //     endTime,
+  //   });
+  // };
 
   const handleDeleteAvailability = async () => {
     if (!availabilityConfig.availabilityId) {
@@ -265,13 +333,13 @@ export function useAvailabilityData() {
     error,
     handleSaveAvailability,
     handleCreateAvailability,
-    handleUpdateAvailability,
+    // handleUpdateAvailability,
     handleDeleteAvailability,
     handleOverrideSave,
     handleOverrideDelete,
     isSaving: saveAvailabilityMutation.isPending,
     isCreating: createAvailabilityMutation.isPending,
-    isUpdating: updateAvailabilityMutation.isPending,
+    // isUpdating: updateAvailabilityMutation.isPending,
     isDeleting: deleteAvailabilityMutation.isPending,
     isCreatingOverride: createOverrideMutation.isPending,
     isDeletingOverride: deleteOverrideMutation.isPending,

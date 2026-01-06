@@ -1,4 +1,6 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { format, parse, differenceInMinutes } from "date-fns";
 import { es } from "date-fns/locale";
 import { Calendar, Clock, User, Phone, UserCircle } from "lucide-react";
@@ -14,7 +16,8 @@ import {
 import { useAppointmentStore } from "@/store/appointmentStore";
 import { useClientStore } from "@/store/clientStore";
 import { toast } from "sonner";
-import type { CreateTurnoPayload } from "@/services/api";
+import { appointmentFormSchema, type AppointmentFormData } from "@/schemas";
+import { TIME_SLOTS } from "@/constants";
 
 interface AppointmentFormProps {
   open: boolean;
@@ -22,10 +25,14 @@ interface AppointmentFormProps {
   selectedDate: Date;
 }
 
-const TIME_SLOTS = Array.from({ length: 24 }, (_, i) => {
-  const hour = i.toString().padStart(2, "0");
-  return [`${hour}:00`, `${hour}:30`];
-}).flat();
+const DEFAULT_VALUES: AppointmentFormData = {
+  nombre: "",
+  celular: "",
+  fecha: "",
+  horarioComienzo: "09:00",
+  horarioFin: "09:30",
+  nombrePeluquero: "Gabriela García",
+};
 
 export function AppointmentForm({
   open,
@@ -39,45 +46,41 @@ export function AppointmentForm({
   const clients = useClientStore((state) => state.clients);
   const fetchClients = useClientStore((state) => state.fetchClients);
 
-  const [formData, setFormData] = useState({
-    nombre: "",
-    celular: "",
-    fecha: format(selectedDate, "yyyy-MM-dd"),
-    horarioComienzo: "09:00",
-    horarioFin: "09:30",
-    nombrePeluquero: "Gabriela García",
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    reset,
+    formState: { errors },
+  } = useForm<AppointmentFormData>({
+    resolver: zodResolver(appointmentFormSchema),
+    defaultValues: {
+      ...DEFAULT_VALUES,
+      fecha: format(selectedDate, "yyyy-MM-dd"),
+    },
   });
 
-  // Fetch clientes cuando se abre el modal
   useEffect(() => {
     if (open) {
       fetchClients();
+      setValue("fecha", format(selectedDate, "yyyy-MM-dd"));
     }
-  }, [open, fetchClients]);
+  }, [open, selectedDate, fetchClients, setValue]);
 
   const handleClientSelect = (celular: string) => {
     const client = clients.find((c) => c.celular === celular);
     if (client) {
-      setFormData((prev) => ({
-        ...prev,
-        nombre: client.nombre,
-        celular: client.celular,
-      }));
+      setValue("nombre", client.nombre);
+      setValue("celular", client.celular);
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    // Parsear la fecha del formulario (yyyy-MM-dd)
-    const fechaDate = parse(formData.fecha, "yyyy-MM-dd", new Date());
-
-    // Formato de fecha para el campo "fecha": dd-MM-yyyy
+  const onSubmit = async (data: AppointmentFormData) => {
+    const fechaDate = parse(data.fecha, "yyyy-MM-dd", new Date());
     const fechaFormateada = format(fechaDate, "dd-MM-yyyy");
 
-    // Crear datetime completo para horarioComienzo y horarioFin
-    const [horaInicio, minInicio] = formData.horarioComienzo.split(":");
-    const [horaFin, minFin] = formData.horarioFin.split(":");
+    const [horaInicio, minInicio] = data.horarioComienzo.split(":");
+    const [horaFin, minFin] = data.horarioFin.split(":");
 
     const fechaInicio = new Date(fechaDate);
     fechaInicio.setHours(parseInt(horaInicio), parseInt(minInicio), 0, 0);
@@ -85,11 +88,9 @@ export function AppointmentForm({
     const fechaFinDate = new Date(fechaDate);
     fechaFinDate.setHours(parseInt(horaFin), parseInt(minFin), 0, 0);
 
-    // Formato ISO local para horarioComienzo y horarioFin (sin convertir a UTC)
     const horarioComienzoISO = format(fechaInicio, "yyyy-MM-dd'T'HH:mm:ss.SSS");
     const horarioFinISO = format(fechaFinDate, "yyyy-MM-dd'T'HH:mm:ss.SSS");
 
-    // Textos legibles en español (usando la hora local directamente)
     const horarioComienzoTexto = format(
       fechaInicio,
       "EEEE, d 'de' MMMM 'de' yyyy - HH:mm'hs'",
@@ -101,11 +102,9 @@ export function AppointmentForm({
       { locale: es }
     );
 
-    // Capitalizar primera letra
     const capitalize = (str: string) =>
       str.charAt(0).toUpperCase() + str.slice(1);
 
-    // Calcular duración en minutos
     const duracionMin = differenceInMinutes(fechaFinDate, fechaInicio);
     const horas = Math.floor(duracionMin / 60);
     const minutos = duracionMin % 60;
@@ -118,9 +117,9 @@ export function AppointmentForm({
       duracionTexto = `${minutos}-minutos`;
     }
 
-    const payload: CreateTurnoPayload = {
-      celular: formData.celular,
-      nombre: formData.nombre,
+    const payload = {
+      celular: data.celular,
+      nombre: data.nombre,
       fecha: fechaFormateada,
       horarioComienzo: horarioComienzoISO,
       horarioFin: horarioFinISO,
@@ -128,21 +127,14 @@ export function AppointmentForm({
       horarioFinTexto: capitalize(horarioFinTexto),
       duracionTexto,
       uidCal: crypto.randomUUID(),
-      nombrePeluquero: formData.nombrePeluquero,
+      nombrePeluquero: data.nombrePeluquero,
     };
 
     const success = await createAppointment(payload);
     if (success) {
       toast.success("Turno creado exitosamente");
       onOpenChange(false);
-      setFormData({
-        nombre: "",
-        celular: "",
-        fecha: format(selectedDate, "yyyy-MM-dd"),
-        horarioComienzo: "09:00",
-        horarioFin: "09:30",
-        nombrePeluquero: "Gabriela García",
-      });
+      reset(DEFAULT_VALUES);
     } else {
       toast.error("Error al crear el turno");
     }
@@ -158,10 +150,11 @@ export function AppointmentForm({
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-4">
           <div className="space-y-2">
             <Label htmlFor="cliente">Cliente existente</Label>
             <select
+              id="cliente"
               className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
               onChange={(e) => handleClientSelect(e.target.value)}
               value=""
@@ -183,13 +176,13 @@ export function AppointmentForm({
               </Label>
               <Input
                 id="nombre"
-                value={formData.nombre}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, nombre: e.target.value }))
-                }
+                {...register("nombre")}
                 placeholder="Nombre del paciente"
-                required
+                aria-invalid={!!errors.nombre}
               />
+              {errors.nombre && (
+                <p className="text-xs text-red-500">{errors.nombre.message}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="celular" className="flex items-center gap-1">
@@ -198,13 +191,13 @@ export function AppointmentForm({
               </Label>
               <Input
                 id="celular"
-                value={formData.celular}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, celular: e.target.value }))
-                }
+                {...register("celular")}
                 placeholder="5493573..."
-                required
+                aria-invalid={!!errors.celular}
               />
+              {errors.celular && (
+                <p className="text-xs text-red-500">{errors.celular.message}</p>
+              )}
             </div>
           </div>
 
@@ -216,34 +209,24 @@ export function AppointmentForm({
             <Input
               id="fecha"
               type="date"
-              value={formData.fecha}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, fecha: e.target.value }))
-              }
-              required
+              {...register("fecha")}
+              aria-invalid={!!errors.fecha}
             />
+            {errors.fecha && (
+              <p className="text-xs text-red-500">{errors.fecha.message}</p>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label
-                htmlFor="horarioComienzo"
-                className="flex items-center gap-1"
-              >
+              <Label htmlFor="horarioComienzo" className="flex items-center gap-1">
                 <Clock className="h-3.5 w-3.5" />
                 Hora inicio
               </Label>
               <select
                 id="horarioComienzo"
                 className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
-                value={formData.horarioComienzo}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    horarioComienzo: e.target.value,
-                  }))
-                }
-                required
+                {...register("horarioComienzo")}
               >
                 {TIME_SLOTS.map((time) => (
                   <option key={time} value={time}>
@@ -260,14 +243,7 @@ export function AppointmentForm({
               <select
                 id="horarioFin"
                 className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
-                value={formData.horarioFin}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    horarioFin: e.target.value,
-                  }))
-                }
-                required
+                {...register("horarioFin")}
               >
                 {TIME_SLOTS.map((time) => (
                   <option key={time} value={time}>
@@ -275,26 +251,26 @@ export function AppointmentForm({
                   </option>
                 ))}
               </select>
+              {errors.horarioFin && (
+                <p className="text-xs text-red-500">{errors.horarioFin.message}</p>
+              )}
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="profesional" className="flex items-center gap-1">
+            <Label htmlFor="nombrePeluquero" className="flex items-center gap-1">
               <UserCircle className="h-3.5 w-3.5" />
               Profesional
             </Label>
             <Input
-              id="profesional"
-              value={formData.nombrePeluquero}
-              onChange={(e) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  nombrePeluquero: e.target.value,
-                }))
-              }
+              id="nombrePeluquero"
+              {...register("nombrePeluquero")}
               placeholder="Nombre del profesional"
-              required
+              aria-invalid={!!errors.nombrePeluquero}
             />
+            {errors.nombrePeluquero && (
+              <p className="text-xs text-red-500">{errors.nombrePeluquero.message}</p>
+            )}
           </div>
 
           <div className="flex gap-2 pt-4">

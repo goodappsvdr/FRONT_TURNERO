@@ -23,13 +23,11 @@ export function DashboardPage() {
     error,
     handleSaveAvailability,
     handleCreateAvailability,
-    handleUpdateAvailability,
     handleDeleteAvailability,
     handleOverrideSave,
     handleOverrideDelete,
     isSaving,
     isCreating,
-    isUpdating,
     isDeleting,
   } = useAvailabilityData();
 
@@ -64,7 +62,6 @@ export function DashboardPage() {
                     isLoading ||
                     isSaving ||
                     isCreating ||
-                    isUpdating ||
                     isDeleting
                   }
                 >
@@ -105,11 +102,10 @@ export function DashboardPage() {
                       </span>
                     </div>
                   ) : (
-                    <AvailabilityEditor
+                  <AvailabilityEditor
                       config={availabilityConfig}
                       onChange={handleSaveAvailability}
                       onCreate={handleCreateAvailability}
-                      onUpdate={handleUpdateAvailability}
                       onDelete={handleDeleteAvailability}
                       onOverrideSave={handleOverrideSave}
                       onOverrideDelete={handleOverrideDelete}

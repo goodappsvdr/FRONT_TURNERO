@@ -42,25 +42,25 @@ export const availabilityApi = {
       }
     );
   },
-  updateAvailability: async (
-    availabilityId: number,
-    empleadoId: number,
-    days: number[],
-    startTime: string,
-    endTime: string
-  ): Promise<void> => {
-    await api.patch(
-      `/Schedules/disponibilidad/${availabilityId}`,
-      {
-        days,
-        StartTime: startTime,
-        EndTime: endTime,
-      },
-      {
-        params: { empleadoId },
-      }
-    );
-  },
+  // updateAvailability: async (
+  //   availabilityId: number,
+  //   empleadoId: number,
+  //   days: number[],
+  //   startTime: string,
+  //   endTime: string
+  // ): Promise<void> => {
+  //   await api.patch(
+  //     `/Schedules/disponibilidad/${availabilityId}`,
+  //     {
+  //       days,
+  //       StartTime: startTime,
+  //       EndTime: endTime,
+  //     },
+  //     {
+  //       params: { empleadoId },
+  //     }
+  //   );
+  // },
 
   deleteAvailability: async (
     availabilityId: number,

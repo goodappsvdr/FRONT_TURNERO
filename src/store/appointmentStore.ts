@@ -162,13 +162,28 @@ export const useAppointmentStore = create<AppointmentStore>((set, get) => ({
   },
 
   updateAppointmentStatus: async (id: number, estado: string) => {
+    const previousAppointments = get().appointments;
+    const statusMap: Record<string, "pending" | "confirmed" | "completed" | "cancelled"> = {
+      pendiente: "pending",
+      confirmado: "confirmed",
+      completado: "completed",
+      cancelado: "cancelled",
+    };
+
+    set((state) => ({
+      appointments: state.appointments.map((apt) =>
+        apt.id === id ? { ...apt, status: statusMap[estado.toLowerCase()] || "pending" } : apt
+      ),
+      error: null,
+    }));
+
     try {
       await calendarApi.updateEstado(id, estado);
       await get().fetchAppointments();
       return true;
     } catch (error) {
       console.error("Error updating appointment status:", error);
-      set({ error: "Error al actualizar el estado del turno" });
+      set({ appointments: previousAppointments, error: "Error al actualizar el estado del turno" });
       return false;
     }
   },
@@ -186,25 +201,38 @@ export const useAppointmentStore = create<AppointmentStore>((set, get) => ({
   },
 
   cancelAppointment: async (id: number, cancellationReason: string) => {
+    const previousAppointments = get().appointments;
+    set((state) => ({
+      appointments: state.appointments.map((apt) =>
+        apt.id === id ? { ...apt, status: "cancelled" as const } : apt
+      ),
+      error: null,
+    }));
+
     try {
       await calendarApi.cancelAppointment(id, cancellationReason);
       await get().fetchAppointments();
       return true;
     } catch (error) {
       console.error("Error cancelling appointment:", error);
-      set({ error: "Error al cancelar el turno" });
+      set({ appointments: previousAppointments, error: "Error al cancelar el turno" });
       return false;
     }
   },
 
   deleteAppointment: async (id: number) => {
+    const previousAppointments = get().appointments;
+    set((state) => ({
+      appointments: state.appointments.filter((apt) => apt.id !== id),
+      error: null,
+    }));
+
     try {
       await calendarApi.delete(id);
-      await get().fetchAppointments();
       return true;
     } catch (error) {
       console.error("Error deleting appointment:", error);
-      set({ error: "Error al eliminar el turno" });
+      set({ appointments: previousAppointments, error: "Error al eliminar el turno" });
       return false;
     }
   },
