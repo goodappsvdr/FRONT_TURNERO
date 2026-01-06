@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { format, parse, differenceInMinutes } from "date-fns";
 import { es } from "date-fns/locale";
 import { User, Phone, Pencil } from "lucide-react";
@@ -13,7 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { useAppointmentStore } from "@/store/appointmentStore";
 import { toast } from "sonner";
-import type { UpdateTurnoFullPayload } from "@/services/api";
+import { z } from "zod";
 import type { Appointment } from "@/types";
 
 interface EditAppointmentFormProps {
@@ -22,44 +24,26 @@ interface EditAppointmentFormProps {
   appointment: Appointment | null;
 }
 
-const STATUS_OPTIONS = [
-  { value: "pendiente", label: "Pendiente" },
-  { value: "si", label: "Confirmado" },
-  { value: "finalizado", label: "Completado" },
-  { value: "cancelado", label: "Cancelado" },
-];
+const editAppointmentSchema = z.object({
+  nombre: z
+    .string()
+    .min(2, "El nombre debe tener al menos 2 caracteres")
+    .max(100, "El nombre no puede exceder 100 caracteres"),
+  celular: z
+    .string()
+    .min(10, "El celular debe tener al menos 10 dígitos")
+    .max(15, "El celular no puede exceder 15 dígitos"),
+  nombrePeluquero: z
+    .string()
+    .min(2, "El nombre del profesional es requerido"),
+});
 
-type FormDataState = {
-  nombre: string;
-  celular: string;
-  fecha: string;
-  horarioComienzo: string;
-  horarioFin: string;
-  nombrePeluquero: string;
-  estado: string;
-};
+type EditAppointmentFormData = z.infer<typeof editAppointmentSchema>;
 
-const mapStatusToApi = (status: Appointment["status"]): string => {
-  switch (status) {
-    case "confirmed":
-      return "si";
-    case "completed":
-      return "finalizado";
-    case "cancelled":
-      return "cancelado";
-    default:
-      return "pendiente";
-  }
-};
-
-const appointmentToFormData = (appointment: Appointment): FormDataState => ({
+const appointmentToFormData = (appointment: Appointment): EditAppointmentFormData => ({
   nombre: appointment.patientName,
   celular: appointment.patientPhone || "",
-  fecha: appointment.date,
-  horarioComienzo: appointment.startTime,
-  horarioFin: appointment.endTime,
   nombrePeluquero: appointment.profesional,
-  estado: mapStatusToApi(appointment.status),
 });
 
 export function EditAppointmentForm({
@@ -70,52 +54,32 @@ export function EditAppointmentForm({
   const updateAppointmentFull = useAppointmentStore(
     (state) => state.updateAppointmentFull
   );
-  const cancelAppointment = useAppointmentStore(
-    (state) => state.cancelAppointment
-  );
   const isLoading = useAppointmentStore((state) => state.isLoading);
 
-  const [drafts, setDrafts] = useState<Record<number, FormDataState>>({});
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<EditAppointmentFormData>({
+    resolver: zodResolver(editAppointmentSchema),
+  });
+
+  useEffect(() => {
+    if (appointment) {
+      const formData = appointmentToFormData(appointment);
+      reset(formData);
+    }
+  }, [appointment, reset]);
 
   if (!appointment) return null;
 
-  const baseFormData = appointmentToFormData(appointment);
-  const formData = drafts[appointment.id] ?? baseFormData;
-
-  const updateFormField = <K extends keyof FormDataState>(
-    field: K,
-    value: FormDataState[K]
-  ) => {
-    setDrafts((prev) => ({
-      ...prev,
-      [appointment.id]: {
-        ...(prev[appointment.id] ?? baseFormData),
-        [field]: value,
-      },
-    }));
-  };
-
-  const resetDraftForAppointment = () => {
-    setDrafts((prev) => {
-      if (!prev[appointment.id]) return prev;
-      const next = { ...prev };
-      delete next[appointment.id];
-      return next;
-    });
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    // Parsear la fecha del formulario (yyyy-MM-dd)
-    const fechaDate = parse(formData.fecha, "yyyy-MM-dd", new Date());
-
-    // Formato de fecha para el campo "fecha": dd-MM-yyyy
+  const onSubmit = async (data: EditAppointmentFormData) => {
+    const fechaDate = parse(appointment.date, "yyyy-MM-dd", new Date());
     const fechaFormateada = format(fechaDate, "dd-MM-yyyy");
 
-    // Crear datetime completo para horarioComienzo y horarioFin
-    const [horaInicio, minInicio] = formData.horarioComienzo.split(":");
-    const [horaFin, minFin] = formData.horarioFin.split(":");
+    const [horaInicio, minInicio] = appointment.startTime.split(":");
+    const [horaFin, minFin] = appointment.endTime.split(":");
 
     const fechaInicio = new Date(fechaDate);
     fechaInicio.setHours(parseInt(horaInicio), parseInt(minInicio), 0, 0);
@@ -123,11 +87,9 @@ export function EditAppointmentForm({
     const fechaFinDate = new Date(fechaDate);
     fechaFinDate.setHours(parseInt(horaFin), parseInt(minFin), 0, 0);
 
-    // Formato ISO local para horarioComienzo y horarioFin (sin convertir a UTC)
     const horarioComienzoISO = format(fechaInicio, "yyyy-MM-dd'T'HH:mm:ss.SSS");
     const horarioFinISO = format(fechaFinDate, "yyyy-MM-dd'T'HH:mm:ss.SSS");
 
-    // Textos legibles en español (usando la hora local directamente)
     const horarioComienzoTexto = format(
       fechaInicio,
       "EEEE, d 'de' MMMM 'de' yyyy - HH:mm'hs'",
@@ -139,11 +101,9 @@ export function EditAppointmentForm({
       { locale: es }
     );
 
-    // Capitalizar primera letra
     const capitalize = (str: string) =>
       str.charAt(0).toUpperCase() + str.slice(1);
 
-    // Calcular duración en minutos
     const duracionMin = differenceInMinutes(fechaFinDate, fechaInicio);
     const horas = Math.floor(duracionMin / 60);
     const minutos = duracionMin % 60;
@@ -156,56 +116,30 @@ export function EditAppointmentForm({
       duracionTexto = `${minutos}-minutos`;
     }
 
-    const payload: UpdateTurnoFullPayload = {
-      celular: formData.celular,
-      nombre: formData.nombre,
+    const payload = {
+      celular: data.celular,
+      nombre: data.nombre,
       fecha: fechaFormateada,
       horarioComienzo: horarioComienzoISO,
       horarioFin: horarioFinISO,
       horarioComienzoTexto: capitalize(horarioComienzoTexto),
       horarioFinTexto: capitalize(horarioFinTexto),
       duracionTexto,
-      nombrePeluquero: formData.nombrePeluquero,
-      estado: formData.estado,
+      nombrePeluquero: data.nombrePeluquero,
+      estado: "pendiente",
     };
-
-    if (formData.estado === "cancelado") {
-      const cancelled = await cancelAppointment(appointment.id, "cancelado");
-      if (!cancelled) {
-        toast.error("Error al cancelar el turno");
-        return;
-      }
-    }
 
     const success = await updateAppointmentFull(appointment.id, payload);
     if (success) {
       toast.success("Turno actualizado exitosamente");
-      resetDraftForAppointment();
       onOpenChange(false);
     } else {
       toast.error("Error al actualizar el turno");
     }
   };
 
-  const handleDialogOpenChange = (nextOpen: boolean) => {
-    if (!nextOpen) {
-      resetDraftForAppointment();
-    }
-    onOpenChange(nextOpen);
-  };
-
-  const handleClose = () => {
-    handleDialogOpenChange(false);
-  };
-
-  const handleFieldChange =
-    <K extends keyof FormDataState>(field: K) =>
-    (value: FormDataState[K]) => {
-      updateFormField(field, value);
-    };
-
   return (
-    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[480px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -214,7 +148,7 @@ export function EditAppointmentForm({
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="nombre" className="flex items-center gap-1">
@@ -223,11 +157,13 @@ export function EditAppointmentForm({
               </Label>
               <Input
                 id="nombre"
-                value={formData.nombre}
-                onChange={(e) => handleFieldChange("nombre")(e.target.value)}
+                {...register("nombre")}
                 placeholder="Nombre del paciente"
-                required
+                aria-invalid={!!errors.nombre}
               />
+              {errors.nombre && (
+                <p className="text-xs text-red-500">{errors.nombre.message}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="celular" className="flex items-center gap-1">
@@ -236,121 +172,29 @@ export function EditAppointmentForm({
               </Label>
               <Input
                 id="celular"
-                value={formData.celular}
-                onChange={(e) => handleFieldChange("celular")(e.target.value)}
+                {...register("celular")}
                 placeholder="5493573..."
-                required
+                aria-invalid={!!errors.celular}
               />
+              {errors.celular && (
+                <p className="text-xs text-red-500">{errors.celular.message}</p>
+              )}
             </div>
           </div>
 
-          {/* <div className="space-y-2">
-            <Label htmlFor="fecha" className="flex items-center gap-1">
-              <Calendar className="h-3.5 w-3.5" />
-              Fecha
+          <div className="space-y-2">
+            <Label htmlFor="nombrePeluquero" className="flex items-center gap-1">
+              Profesional
             </Label>
             <Input
-              id="fecha"
-              type="date"
-              value={formData.fecha}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, fecha: e.target.value }))
-              }
-              required
+              id="nombrePeluquero"
+              {...register("nombrePeluquero")}
+              placeholder="Nombre del profesional"
+              aria-invalid={!!errors.nombrePeluquero}
             />
-          </div> */}
-
-          {/* <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label
-                htmlFor="horarioComienzo"
-                className="flex items-center gap-1"
-              >
-                <Clock className="h-3.5 w-3.5" />
-                Hora inicio
-              </Label>
-              <select
-                id="horarioComienzo"
-                className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
-                value={formData.horarioComienzo}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    horarioComienzo: e.target.value,
-                  }))
-                }
-                required
-              >
-                {TIME_SLOTS.map((time) => (
-                  <option key={time} value={time}>
-                    {time}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="horarioFin" className="flex items-center gap-1">
-                <Clock className="h-3.5 w-3.5" />
-                Hora fin
-              </Label>
-              <select
-                id="horarioFin"
-                className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
-                value={formData.horarioFin}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    horarioFin: e.target.value,
-                  }))
-                }
-                required
-              >
-                {TIME_SLOTS.map((time) => (
-                  <option key={time} value={time}>
-                    {time}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div> */}
-
-          <div className="grid grid-cols-2 gap-4">
-            {/* <div className="space-y-2">
-              <Label htmlFor="profesional" className="flex items-center gap-1">
-                <UserCircle className="h-3.5 w-3.5" />
-                Profesional
-              </Label>
-              <Input
-                id="profesional"
-                value={formData.nombrePeluquero}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    nombrePeluquero: e.target.value,
-                  }))
-                }
-                placeholder="Nombre del profesional"
-                required
-              />
-            </div> */}
-            <div className="space-y-2">
-              <Label htmlFor="estado" className="flex items-center gap-1">
-                Estado
-              </Label>
-              <select
-                id="estado"
-                className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
-                value={formData.estado}
-                onChange={(e) => handleFieldChange("estado")(e.target.value)}
-                required
-              >
-                {STATUS_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {errors.nombrePeluquero && (
+              <p className="text-xs text-red-500">{errors.nombrePeluquero.message}</p>
+            )}
           </div>
 
           <div className="flex gap-2 pt-4">
@@ -358,7 +202,7 @@ export function EditAppointmentForm({
               type="button"
               variant="outline"
               className="flex-1"
-              onClick={handleClose}
+              onClick={() => onOpenChange(false)}
             >
               Cancelar
             </Button>

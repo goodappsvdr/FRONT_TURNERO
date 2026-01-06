@@ -10,6 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Settings, Calendar } from "lucide-react";
 import { useAppointmentStore } from "@/store/appointmentStore";
 import { useAvailabilityData } from "@/hooks/useAvailabilityData";
+import { useHotkeys } from "@/hooks/useHotkeys";
+import { toast } from "sonner";
 
 export function DashboardPage() {
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -30,6 +32,14 @@ export function DashboardPage() {
     isCreating,
     isDeleting,
   } = useAvailabilityData();
+
+  // Keyboard shortcuts
+  useHotkeys("n", () => {
+    toast.info("Presiona en un día para crear un nuevo turno");
+  });
+  useHotkeys("escape", () => setShowAvailability(false));
+  useHotkeys("d", () => setShowAvailability(false));
+  useHotkeys("c", () => setShowAvailability(true));
 
   // Cargar citas al cambiar la fecha
   useEffect(() => {
