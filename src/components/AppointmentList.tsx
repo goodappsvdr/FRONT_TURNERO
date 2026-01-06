@@ -1,4 +1,4 @@
-import { memo, useMemo, useState } from "react";
+import { memo, useMemo, useState, useRef } from "react";
 import { format, startOfWeek, endOfWeek, isWithinInterval } from "date-fns";
 import { es } from "date-fns/locale";
 import {
@@ -15,6 +15,7 @@ import {
   X,
   Pencil,
 } from "lucide-react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -93,6 +94,15 @@ export const AppointmentList = memo(function AppointmentList({
     (state) => state.updateAppointmentStatus
   );
 
+  const parentRef = useRef<HTMLDivElement>(null);
+
+  const rowVirtualizer = useVirtualizer({
+    count: appointments.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 140,
+    overscan: 5,
+  });
+
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -141,7 +151,6 @@ export const AppointmentList = memo(function AppointmentList({
   const filteredAppointments = useMemo(() => {
     let result = appointments;
 
-    // Si hay filtro o búsqueda, mostrar todos. Si no, filtrar por día o semana
     if (!isGlobalSearch) {
       if (viewMode === "week") {
         result = result.filter((apt) => {
@@ -153,19 +162,16 @@ export const AppointmentList = memo(function AppointmentList({
       }
     }
 
-    // Aplicar filtro de estado
     if (statusFilter !== "all") {
       result = result.filter((apt) => apt.status === statusFilter);
     }
 
-    // Aplicar búsqueda
     if (searchQuery !== "") {
       result = result.filter((apt) =>
         apt.patientName.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
-    // Ordenar por fecha y hora
     return result.sort((a, b) => {
       const dateCompare = a.date.localeCompare(b.date);
       if (dateCompare !== 0) return dateCompare;
@@ -181,6 +187,8 @@ export const AppointmentList = memo(function AppointmentList({
     weekStart,
     weekEnd,
   ]);
+
+  const virtualItems = rowVirtualizer.getVirtualItems();
 
   const formattedDate = format(selectedDate, "EEEE d 'de' MMMM", {
     locale: es,
@@ -290,7 +298,7 @@ export const AppointmentList = memo(function AppointmentList({
         </div>
       </div>
 
-      <div className="p-4">
+      <div ref={parentRef} className="p-4 max-h-[600px] overflow-y-auto">
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-12">
             <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
@@ -319,18 +327,27 @@ export const AppointmentList = memo(function AppointmentList({
             </p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {filteredAppointments.map((appointment, index) => {
+          <div
+            style={{
+              height: `${rowVirtualizer.getTotalSize()}px`,
+              width: "100%",
+              position: "relative",
+            }}
+          >
+            {virtualItems.map((virtualRow) => {
+              const appointment = filteredAppointments[virtualRow.index];
               const status = statusConfig[appointment.status];
               return (
                 <div
                   key={appointment.id}
                   className={cn(
-                    "group relative border rounded-xl p-4 transition-all duration-200",
-                    "hover:shadow-md hover:border-primary/20 hover:-translate-y-0.5",
-                    "animate-fade-in"
+                    "group absolute top-0 left-0 w-full border rounded-xl p-4 transition-all duration-200",
+                    "hover:shadow-md hover:border-primary/20 hover:-translate-y-0.5"
                   )}
-                  style={{ animationDelay: `${index * 50}ms` }}
+                  style={{
+                    height: `${virtualRow.size}px`,
+                    transform: `translateY(${virtualRow.start}px)`,
+                  }}
                 >
                   <div
                     className={cn(
